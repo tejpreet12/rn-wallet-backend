@@ -34,19 +34,79 @@ async function initDB() {
   }
 }
 
-app.post("/api/transactions", async (req, res) => {
+app.get("/api/transactions/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
 
-  const {user_id,title,category,amount} = req.body;
-   
-  if(!user_id || !title || !category || amount === undefined){
-    return res.status(400).json({error: "Missing required fields"});
+    if (!userId) {
+      return res.status(400).json({ error: "Missing UserId" });
+    }
+
+    const transaction =
+      await sql`SELECT * FROM transactions WHERE user_id = ${userId} ORDER BY created_at DESC`;
+
+    if (transaction.length === 0) {
+      return res.status(404).json({ error: "No transactions found" });
+    }
+
+    res
+      .status(200)
+      .json({ message: "Transactions fetched successfully", transaction });
+  } catch (err) {
+    console.error("Error fetching transactions:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
+});
 
-  const transaction = await sql`INSERT INTO transactions (user_id,title,category,amount)
-                                VALUES (${user_id},${title},${category},${amount}) 
-                                RETURNING *`
+app.post("/api/transactions", async (req, res) => {
+  try {
+    const { user_id, title, category, amount } = req.body;
 
-  res.status(201).json(transaction[0]);
+    if (!user_id || !title || !category || amount === undefined) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const transaction =
+      await sql`INSERT INTO transactions (user_id,title,category,amount)
+                VALUES (${user_id},${title},${category},${amount}) 
+                RETURNING *`;
+
+    res.status(201).json(transaction[0]);
+  } catch (err) {
+    console.error("Error creating transaction:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.delete("/api/transactions/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (isNaN(parseInt(id))) {
+      return res.status(400).json({ error: "Invalid transaction ID" });
+    }
+
+    if (!id) {
+      return res.status(400).json({ error: "Missing transaction ID" });
+    }
+
+    const result =
+      await sql`DELETE FROM transactions WHERE id =${id} RETURNING *`;
+
+    if (result.length === 0) {
+      return res.status(404).json({ error: "Transaction not found" });
+    }
+
+    res
+      .status(200)
+      .json({
+        message: "Transaction deleted successfully",
+        transaction: result[0],
+      });
+  } catch (err) {
+    console.error("Error deleting transaction:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 initDB().then(() => {
