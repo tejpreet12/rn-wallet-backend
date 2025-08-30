@@ -1,10 +1,16 @@
 const dotenv = require("dotenv");
 dotenv.config();
 const express = require("express");
+const { rateLimiter } = require("./middleware/ratelimiter");
 
 const { sql } = require("./config/db");
 
 const app = express();
+
+//Middlwares
+
+//Middleware for Rate Limiting
+app.use(rateLimiter);
 // Middleware to parse JSON bodies
 app.use(express.json());
 
@@ -97,14 +103,66 @@ app.delete("/api/transactions/:id", async (req, res) => {
       return res.status(404).json({ error: "Transaction not found" });
     }
 
-    res
-      .status(200)
-      .json({
-        message: "Transaction deleted successfully",
-        transaction: result[0],
-      });
+    res.status(200).json({
+      message: "Transaction deleted successfully",
+      transaction: result[0],
+    });
   } catch (err) {
     console.error("Error deleting transaction:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/api/transactions/summary/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: "Missing UserId" });
+    }
+
+    // const balance = await sql`
+    //   SELECT COALESCE(SUM(amount), 0) AS balance from transactions WHERE user_id = ${userId}`;
+
+    // const income =
+    //   await sql`SELECT COALESCE(SUM(amount), 0) AS income from transactions
+    //  WHERE user_id = ${userId} AND amount > 0`;
+
+    // const expense =
+    //   await sql`SELECT COALESCE(SUM(amount), 0) AS expense from transactions
+    //                 WHERE user_id =${userId} AND amount < 0`;
+
+    /**
+     * Optimized Query by GitHub Copilot
+     * This single query replaces three separate database calls for better performance:
+     * 1. Reduces database round trips from 3 to 1
+     * 2. Scans the transactions table only once instead of three times
+     * 3. Calculates balance, income, and expenses in a single pass
+     *
+     * CASE statements are used to conditionally sum amounts:
+     * - balance: sum of all amounts
+     * - income: sum of positive amounts only
+     * - expense: sum of negative amounts only
+     *
+     * COALESCE ensures we get 0 instead of NULL when no records are found
+     */
+    const summary = await sql`
+      SELECT 
+        COALESCE(SUM(amount), 0) as balance,
+        COALESCE(SUM(CASE WHEN amount > 0 THEN amount END), 0) as income,
+        COALESCE(SUM(CASE WHEN amount < 0 THEN amount END), 0) as expense
+      FROM transactions 
+      WHERE user_id = ${userId}
+    `;
+
+    res.status(200).json({
+      message: "Transaction summary fetched successfully",
+      balance: summary[0].balance,
+      income: summary[0].income,
+      expense: summary[0].expense,
+    });
+  } catch (error) {
+    console.error("Error fetching transaction summary:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
