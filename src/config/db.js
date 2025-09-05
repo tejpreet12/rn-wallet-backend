@@ -1,14 +1,9 @@
 const dotenv = require("dotenv");
 dotenv.config();
-const express = require("express");
+const { neon } = require("@neondatabase/serverless");
 
-const { sql } = require("./config/db");
-
-const app = express();
-// Middleware to parse JSON bodies
-app.use(express.json());
-
-const PORT = process.env.PORT || 5001;
+//Creates Sql connection using our DB URL from .env file
+const sql = neon(process.env.DATABASE_URL);
 
 async function initDB() {
   try {
@@ -34,23 +29,6 @@ async function initDB() {
   }
 }
 
-app.post("/api/transactions", async (req, res) => {
 
-  const {user_id,title,category,amount} = req.body;
-   
-  if(!user_id || !title || !category || amount === undefined){
-    return res.status(400).json({error: "Missing required fields"});
-  }
+module.exports = { sql, initDB };
 
-  const transaction = await sql`INSERT INTO transactions (user_id,title,category,amount)
-                                VALUES (${user_id},${title},${category},${amount}) 
-                                RETURNING *`
-
-  res.status(201).json(transaction[0]);
-});
-
-initDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-  });
-});
