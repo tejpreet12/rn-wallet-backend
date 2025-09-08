@@ -4,8 +4,12 @@ const express = require("express");
 const { rateLimiter } = require("../src/middleware/rateLimiter");
 const { initDB } = require("../src/config/db");
 const { transactionRouter } = require("../src/routes/transactionRouter");
-
+const job = require("../src/config/cron");
 const app = express();
+
+
+// Start the cron job
+if(process.env.NODE_ENV === 'production') job.start();
 
 //Middlewares
 //Middleware for Rate Limiting
