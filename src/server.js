@@ -19,8 +19,12 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 5001;
 
-app.get(process.env.API_URL, (req, res) => {
-  res.status(200).json({ status: "OK" });
+// Health check endpoint
+app.get('/api/healthcheck', (req, res) => {
+  res.status(200).json({ 
+    status: "OK",
+    timestamp: new Date().toISOString()
+  });
 });
 
 //Routes
