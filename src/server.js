@@ -7,9 +7,10 @@ const { transactionRouter } = require("../src/routes/transactionRouter");
 const job = require("../src/config/cron");
 const app = express();
 
-
+console.log(process.env.NODE_ENV,"process.env.NODE_ENV");
 // Start the cron job
 if(process.env.NODE_ENV === 'production') job.start();
+
 
 //Middlewares
 //Middleware for Rate Limiting
